@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block title %}Регистрация — 80 rubley rossii{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Регистрация</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Создать аккаунт</button>
+    </form>
+    <div class="auth-links">
+        <span>Уже есть аккаунт?</span>
+        <a class="button secondary" href="{% url 'login' %}">Войти</a>
+    </div>
+</section>
+{% endblock %}
+

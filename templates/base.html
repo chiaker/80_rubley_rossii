@@ -1,0 +1,53 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}80 rubley rossii{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+
+<body>
+    <header>
+        <nav class="top-nav">
+            <div class="nav-left">
+                <span class="brand">80 rubley rossii</span>
+                <div class="nav-links">
+                    <a href="{% url 'analytics:home' %}">Главная</a>
+                    <a href="{% url 'analytics:dashboard' %}">Панель</a>
+                    <a href="{% url 'analytics:assets' %}">Каталог активов</a>
+                    <a href="{% url 'analytics:analytics' %}">Аналитика</a>
+                    <a href="{% url 'analytics:about' %}">О нас</a>
+                </div>
+            </div>
+            <div class="nav-right">
+                {% if user.is_authenticated %}
+                <a class="username" href="{% url 'analytics:profile' %}">{{ user.username }}</a>
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="button ghost">Выйти</button>
+                </form>
+                {% else %}
+                <a class="button" href="{% url 'login' %}">Войти</a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+    <main>
+        {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <p>© {% now "Y" %} Stock AI</p>
+    </footer>
+</body>
+
+</html>

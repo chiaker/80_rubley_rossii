@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}О нас и контакты{% endblock %}
+
+{% block content %}
+<section>
+    <h1>О проекте</h1>
+    <p>Stock AI объединяет прогнозные модели, новости и аналитику для акций и криптовалют.</p>
+</section>
+
+<section>
+    <h2>Свяжитесь с нами</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Отправить</button>
+    </form>
+</section>
+{% endblock %}
+

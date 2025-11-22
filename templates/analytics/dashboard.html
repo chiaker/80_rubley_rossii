@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель прогнозов{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Персонализированные прогнозы</h1>
+    {% if personalized_predictions %}
+        <ul>
+            {% for prediction in personalized_predictions %}
+                <li>
+                    {{ prediction.asset.ticker }} — {{ prediction.predicted_price }} ({{ prediction.get_horizon_display }})
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Добавьте активы в избранное, чтобы видеть прогнозы.</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Недавние просмотры</h2>
+    {% if recent_views %}
+        <ul>
+            {% for view in recent_views %}
+                <li>{{ view.prediction.asset.ticker }} — {{ view.prediction.predicted_price }} ({{ view.viewed_at }})</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>История пока пуста.</p>
+    {% endif %}
+</section>
+{% endblock %}
+

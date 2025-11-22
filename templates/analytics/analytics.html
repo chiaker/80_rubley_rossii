@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Аналитика и новости{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Новости</h1>
+    {% for item in news_feed %}
+        <article>
+            <h3>{{ item.title }}</h3>
+            <small>{{ item.published_at }} | {{ item.asset }}</small>
+            <p>{{ item.content }}</p>
+            <a href="{{ item.source }}" target="_blank">Источник</a>
+        </article>
+    {% empty %}
+        <p>Новостей нет.</p>
+    {% endfor %}
+</section>
+
+<section>
+    <h2>Индекс настроений</h2>
+    {% for sentiment in sentiment_feed %}
+        <div>
+            <strong>{{ sentiment.asset.ticker }}</strong> — {{ sentiment.sentiment_score }} ({{ sentiment.source_type }})
+        </div>
+    {% empty %}
+        <p>Данные отсутствуют.</p>
+    {% endfor %}
+</section>
+{% endblock %}
+

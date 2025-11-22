@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Каталог активов{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Каталог</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Тикер</th>
+                <th>Название</th>
+                <th>Тип</th>
+                <th>Волатильность</th>
+                <th>RSI</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for asset in assets %}
+                <tr>
+                    <td>{{ asset.ticker }}</td>
+                    <td>{{ asset.name }}</td>
+                    <td>{{ asset.get_asset_type_display }}</td>
+                    <td>{{ asset.stats.volatility|default:'—' }}</td>
+                    <td>{{ asset.stats.rsi|default:'—' }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5">Активы отсутствуют.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}
+

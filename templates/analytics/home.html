@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная — Stock AI{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Примеры прогнозов</h1>
+    <div class="cards">
+        {% for prediction in latest_predictions %}
+            <article>
+                <h3>{{ prediction.asset.name }} ({{ prediction.asset.ticker }})</h3>
+                <p>Горизонт: {{ prediction.get_horizon_display }}</p>
+                <p>Цена: {{ prediction.predicted_price }} (доверие {{ prediction.confidence|floatformat:2 }})</p>
+                <small>Модель: {{ prediction.model_version }}</small>
+            </article>
+        {% empty %}
+            <p>Пока нет прогнозов.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section>
+    <h2>Статистика активов</h2>
+    <div class="cards">
+        {% for asset in highlighted_assets %}
+            <article>
+                <h3>{{ asset.name }}</h3>
+                <p>Тип: {{ asset.get_asset_type_display }}</p>
+                {% if asset.stats %}
+                    <p>50 MA: {{ asset.stats.moving_average_50 }}</p>
+                    <p>RSI: {{ asset.stats.rsi }}</p>
+                {% else %}
+                    <p>Нет рассчитанной статистики.</p>
+                {% endif %}
+            </article>
+        {% empty %}
+            <p>Каталог пуст.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
+
