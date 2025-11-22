@@ -68,7 +68,7 @@
                             </td>
                             <td>
                                 {% if asset.change_24h is not None %}
-                                    <span style="color: {% if asset.change_24h > 0 %}green{% elif asset.change_24h < 0 %}red{% else %}inherit{% endif %}">
+                                    <span class="{% if asset.change_24h > 0 %}text-green{% elif asset.change_24h < 0 %}text-red{% endif %}">
                                         {{ asset.change_24h|floatformat:2 }}%
                                     </span>
                                 {% else %}
