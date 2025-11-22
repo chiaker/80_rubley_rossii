@@ -27,8 +27,15 @@ def home(request):
     for a in highlighted_assets:
         if a.asset_type == Asset.CRYPTO:
             pdata = prices.get(a.ticker.upper(), {})
-            a.current_price = pdata.get('price')
-            a.change_24h = pdata.get('percent_change_24h')
+            # Приводим к float, чтобы шаблон мог сравнивать числовые значения
+            try:
+                a.current_price = float(pdata.get('price')) if pdata.get('price') is not None else None
+            except (TypeError, ValueError):
+                a.current_price = None
+            try:
+                a.change_24h = float(pdata.get('percent_change_24h')) if pdata.get('percent_change_24h') is not None else None
+            except (TypeError, ValueError):
+                a.change_24h = None
         else:
             a.current_price = None
             a.change_24h = None
@@ -79,8 +86,14 @@ def asset_catalog(request):
     prices = fetch_current_crypto_prices(crypto_symbols, convert=currency)
     for a in cryptos:
         pdata = prices.get(a.ticker.upper(), {})
-        a.current_price = pdata.get('price')
-        a.change_24h = pdata.get('percent_change_24h')
+        try:
+            a.current_price = float(pdata.get('price')) if pdata.get('price') is not None else None
+        except (TypeError, ValueError):
+            a.current_price = None
+        try:
+            a.change_24h = float(pdata.get('percent_change_24h')) if pdata.get('percent_change_24h') is not None else None
+        except (TypeError, ValueError):
+            a.change_24h = None
 
     # Для акций current_price и change_24h пока не поддерживаем (можно добавить позже)
     for a in stocks:

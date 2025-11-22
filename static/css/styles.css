@@ -8,7 +8,9 @@
     color: #e53935;
     font-weight: 600;
 }
-
+ .text-neutral {
+    color: inherit;
+ }
 body {
     font-family: Arial, sans-serif;
     margin: 0;
