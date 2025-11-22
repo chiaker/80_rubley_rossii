@@ -5,47 +5,81 @@
 {% block content %}
 <section>
     <h1>Каталог</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Тикер</th>
-                <th>Название</th>
-                <th>Тип</th>
-                <th>Цена (USD)</th>
-                <th>Изменение 24ч</th>
-                <th>Волатильность</th>
-                <th>RSI</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for asset in assets %}
-            <tr>
-                <td>{{ asset.ticker }}</td>
-                <td>{{ asset.name }}</td>
-                <td>{{ asset.get_asset_type_display }}</td>
-                <td>
-                    {% if asset.current_price %}
-                    {{ asset.current_price|floatformat:2 }}
-                    {% else %}
-                    —
-                    {% endif %}
-                </td>
-                <td>
-                    {% if asset.change_24h is not None %}
-                    {{ asset.change_24h|floatformat:2 }}%
-                    {% else %}
-                    —
-                    {% endif %}
-                </td>
-                <td>{{ asset.stats.volatility|default:'—' }}</td>
-                <td>{{ asset.stats.rsi|default:'—' }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="7">Активы отсутствуют.</td>
-            </tr>
+    <form method="get" style="margin-bottom: 1em;">
+        <label for="currency">Валюта:</label>
+        <select name="currency" id="currency" onchange="this.form.submit()">
+            {% for cur in currency_choices %}
+                <option value="{{ cur }}" {% if cur == currency %}selected{% endif %}>{{ cur }}</option>
             {% endfor %}
-        </tbody>
-    </table>
+        </select>
+    </form>
+    <div style="display: flex; gap: 2em; align-items: flex-start;">
+        <div style="flex: 1;">
+            <h2>Акции</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Тикер</th>
+                        <th>Название</th>
+                        <th>Цена ({{ currency }})</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in stocks %}
+                        <tr>
+                            <td>{{ asset.ticker }}</td>
+                            <td>{{ asset.name }}</td>
+                            <td>
+                                {% if asset.current_price %}
+                                    {{ asset.current_price|floatformat:2 }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3">Нет акций.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="flex: 1;">
+            <h2>Криптовалюты</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Тикер</th>
+                        <th>Название</th>
+                        <th>Цена ({{ currency }})</th>
+                        <th>Изм. 24ч</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in cryptos %}
+                        <tr>
+                            <td>{{ asset.ticker }}</td>
+                            <td>{{ asset.name }}</td>
+                            <td>
+                                {% if asset.current_price %}
+                                    {{ asset.current_price|floatformat:2 }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if asset.change_24h is not None %}
+                                    {{ asset.change_24h|floatformat:2 }}%
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4">Нет криптовалют.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </section>
 {% endblock %}

@@ -67,23 +67,37 @@ def dashboard(request):
 
 
 def asset_catalog(request):
-    assets = Asset.objects.select_related('stats').all()
-    crypto_symbols = [a.ticker for a in assets if a.asset_type == Asset.CRYPTO]
-    prices = fetch_current_crypto_prices(crypto_symbols)
-    for a in assets:
-        if a.asset_type == Asset.CRYPTO:
-            pdata = prices.get(a.ticker.upper(), {})
-            a.current_price = pdata.get('price')
-            a.change_24h = pdata.get('percent_change_24h')
-        else:
-            a.current_price = None
-            a.change_24h = None
+    # Валюта для отображения (по умолчанию USD)
+    currency = request.GET.get('currency', 'USD').upper()
+    # Разделяем активы
+    all_assets = Asset.objects.all()
+    stocks = [a for a in all_assets if a.asset_type == Asset.STOCK]
+    cryptos = [a for a in all_assets if a.asset_type == Asset.CRYPTO]
+
+    # Получаем цены для крипты
+    crypto_symbols = [a.ticker for a in cryptos]
+    prices = fetch_current_crypto_prices(crypto_symbols, convert=currency)
+    for a in cryptos:
+        pdata = prices.get(a.ticker.upper(), {})
+        a.current_price = pdata.get('price')
+        a.change_24h = pdata.get('percent_change_24h')
+
+    # Для акций current_price и change_24h пока не поддерживаем (можно добавить позже)
+    for a in stocks:
+        a.current_price = None
+        a.change_24h = None
+
+    # Список поддерживаемых валют (можно расширить)
+    currency_choices = ['USD', 'EUR', 'RUB']
 
     return render(
         request,
         'analytics/assets.html',
         {
-            'assets': assets,
+            'stocks': stocks,
+            'cryptos': cryptos,
+            'currency': currency,
+            'currency_choices': currency_choices,
         },
     )
 
