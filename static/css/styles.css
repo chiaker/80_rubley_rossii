@@ -1,3 +1,12 @@
+/* Цвет для изменения цены */
+.text-green {
+    color: #1ca01c;
+    font-weight: 600;
+}
+.text-red {
+    color: #e53935;
+    font-weight: 600;
+}
 body {
     font-family: Arial, sans-serif;
     margin: 0;
