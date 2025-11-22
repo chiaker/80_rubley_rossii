@@ -13,12 +13,24 @@ from .models import (
     Sentiment,
     UserPredictionHistory,
 )
+from .utils import fetch_current_crypto_prices
 
 
 def home(request):
     latest_predictions = PricePrediction.objects.select_related(
         'asset').order_by('-created_at')[:5]
     highlighted_assets = Asset.objects.prefetch_related('stats').all()[:6]
+    # Attach current prices for crypto assets (if CMC_API_KEY is set)
+    crypto_symbols = [a.ticker for a in highlighted_assets if a.asset_type == Asset.CRYPTO]
+    prices = fetch_current_crypto_prices(crypto_symbols)
+    for a in highlighted_assets:
+        if a.asset_type == Asset.CRYPTO:
+            pdata = prices.get(a.ticker.upper(), {})
+            a.current_price = pdata.get('price')
+            a.change_24h = pdata.get('percent_change_24h')
+        else:
+            a.current_price = None
+            a.change_24h = None
     return render(
         request,
         'analytics/home.html',
@@ -55,6 +67,17 @@ def dashboard(request):
 
 def asset_catalog(request):
     assets = Asset.objects.select_related('stats').all()
+    crypto_symbols = [a.ticker for a in assets if a.asset_type == Asset.CRYPTO]
+    prices = fetch_current_crypto_prices(crypto_symbols)
+    for a in assets:
+        if a.asset_type == Asset.CRYPTO:
+            pdata = prices.get(a.ticker.upper(), {})
+            a.current_price = pdata.get('price')
+            a.change_24h = pdata.get('percent_change_24h')
+        else:
+            a.current_price = None
+            a.change_24h = None
+
     return render(
         request,
         'analytics/assets.html',

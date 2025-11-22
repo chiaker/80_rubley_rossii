@@ -26,6 +26,8 @@
             <article>
                 <h3>{{ asset.name }}</h3>
                 <p>Тип: {{ asset.get_asset_type_display }}</p>
+                <p>Текущая цена: {% if asset.current_price %}{{ asset.current_price|floatformat:2 }}{% else %}—{% endif %} USD</p>
+                <p>Изменение 24ч: {% if asset.change_24h is not None %}{{ asset.change_24h|floatformat:2 }}%{% else %}—{% endif %}</p>
                 {% if asset.stats %}
                     <p>50 MA: {{ asset.stats.moving_average_50 }}</p>
                     <p>RSI: {{ asset.stats.rsi }}</p>
