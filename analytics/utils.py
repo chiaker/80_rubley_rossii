@@ -23,7 +23,6 @@ def fetch_current_crypto_prices(symbols: Iterable[str], convert: str = 'USD') ->
 
     symbols = [s.upper() for s in set(symbols) if s]
     if not symbols:
-        print('No symbols provided; skipping price fetch')
         return {}
 
     url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'

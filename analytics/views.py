@@ -21,7 +21,8 @@ def home(request):
         'asset').order_by('-created_at')[:5]
     highlighted_assets = Asset.objects.prefetch_related('stats').all()[:6]
     # Attach current prices for crypto assets (if CMC_API_KEY is set)
-    crypto_symbols = [a.ticker for a in highlighted_assets if a.asset_type == Asset.CRYPTO]
+    crypto_symbols = [
+        a.ticker for a in highlighted_assets if a.asset_type == Asset.CRYPTO]
     prices = fetch_current_crypto_prices(crypto_symbols)
     for a in highlighted_assets:
         if a.asset_type == Asset.CRYPTO:
