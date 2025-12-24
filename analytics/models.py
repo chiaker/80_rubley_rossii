@@ -13,7 +13,8 @@ class Asset(models.Model):
     ticker = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=100)
     asset_type = models.CharField(max_length=10, choices=ASSET_TYPES)
-    market_cap = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    market_cap = models.DecimalField(
+        max_digits=20, decimal_places=2, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -24,7 +25,8 @@ class Asset(models.Model):
 
 
 class HistoricalPrice(models.Model):
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='prices')
+    asset = models.ForeignKey(
+        Asset, on_delete=models.CASCADE, related_name='prices')
     date = models.DateTimeField()
     open_price = models.DecimalField(max_digits=20, decimal_places=8)
     high_price = models.DecimalField(max_digits=20, decimal_places=8)
@@ -47,7 +49,8 @@ class PricePrediction(models.Model):
         ('30D', '30 Days'),
     ]
 
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='predictions')
+    asset = models.ForeignKey(
+        Asset, on_delete=models.CASCADE, related_name='predictions')
     prediction_date = models.DateTimeField()
     horizon = models.CharField(max_length=3, choices=HORIZON_CHOICES)
     predicted_price = models.DecimalField(max_digits=20, decimal_places=8)
@@ -61,13 +64,40 @@ class PricePrediction(models.Model):
     def __str__(self):
         return f'{self.asset.ticker} {self.horizon} прогноз'
 
+    def get_direction(self, current_price=None):
+        """Возвращает направление изменения цены: 'up', 'down' или 'neutral'
+
+        Args:
+            current_price: Текущая цена актива (опционально)
+        """
+        try:
+            if current_price is None:
+                from .utils import fetch_current_stock_prices
+                stock_prices = fetch_current_stock_prices([self.asset.ticker])
+                pdata = stock_prices.get(self.asset.ticker.upper(), {})
+                current_price = pdata.get('price')
+
+            if current_price:
+                current = float(current_price)
+                predicted = float(self.predicted_price)
+                if predicted > current * 1.01:
+                    return 'up'
+                elif predicted < current * 0.99:
+                    return 'down'
+            return 'neutral'
+        except Exception:
+            return 'neutral'
+
 
 class AssetStats(models.Model):
-    asset = models.OneToOneField(Asset, on_delete=models.CASCADE, related_name='stats')
+    asset = models.OneToOneField(
+        Asset, on_delete=models.CASCADE, related_name='stats')
     volatility = models.FloatField(null=True, blank=True)
     rsi = models.FloatField(null=True, blank=True)
-    moving_average_50 = models.DecimalField(max_digits=20, decimal_places=8, null=True, blank=True)
-    moving_average_200 = models.DecimalField(max_digits=20, decimal_places=8, null=True, blank=True)
+    moving_average_50 = models.DecimalField(
+        max_digits=20, decimal_places=8, null=True, blank=True)
+    moving_average_200 = models.DecimalField(
+        max_digits=20, decimal_places=8, null=True, blank=True)
     last_updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -75,7 +105,8 @@ class AssetStats(models.Model):
 
 
 class News(models.Model):
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, null=True, blank=True, related_name='news')
+    asset = models.ForeignKey(
+        Asset, on_delete=models.CASCADE, null=True, blank=True, related_name='news')
     title = models.CharField(max_length=200)
     content = models.TextField()
     source = models.URLField(max_length=500)
@@ -90,7 +121,8 @@ class News(models.Model):
 
 
 class Sentiment(models.Model):
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='sentiments')
+    asset = models.ForeignKey(
+        Asset, on_delete=models.CASCADE, related_name='sentiments')
     sentiment_score = models.FloatField()
     analysis_date = models.DateTimeField()
     source_type = models.CharField(max_length=50)
@@ -111,9 +143,12 @@ class UserProfile(models.Model):
         (PLAN_PREMIUM, 'Premium'),
     ]
 
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
-    subscription_plan = models.CharField(max_length=50, choices=PLAN_CHOICES, default=PLAN_FREE)
-    favorite_assets = models.ManyToManyField(Asset, related_name='fans', blank=True)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
+    subscription_plan = models.CharField(
+        max_length=50, choices=PLAN_CHOICES, default=PLAN_FREE)
+    favorite_assets = models.ManyToManyField(
+        Asset, related_name='fans', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -121,8 +156,10 @@ class UserProfile(models.Model):
 
 
 class UserPredictionHistory(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='prediction_views')
-    prediction = models.ForeignKey(PricePrediction, on_delete=models.CASCADE, related_name='views')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='prediction_views')
+    prediction = models.ForeignKey(
+        PricePrediction, on_delete=models.CASCADE, related_name='views')
     viewed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

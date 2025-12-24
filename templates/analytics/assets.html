@@ -22,6 +22,9 @@
                         <th>Тикер</th>
                         <th>Название</th>
                         <th>Цена ({{ currency }})</th>
+                        <th>Изм. 24ч</th>
+                        <th>График 24ч</th>
+                        {% if user.is_authenticated %}<th>Избранное</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -36,9 +39,33 @@
                                     —
                                 {% endif %}
                             </td>
+                            <td>
+                                {% if asset.change_24h is not None %}
+                                    <span class="{% if asset.change_24h > 0 %}text-green{% elif asset.change_24h < 0 %}text-red{% else %}text-neutral{% endif %}">
+                                        {{ asset.change_24h|floatformat:2 }}%
+                                    </span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if asset.sparkline_svg %}
+                                    <div class="sparkline">{{ asset.sparkline_svg|safe }}</div>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            {% if user.is_authenticated %}
+                            <td>
+                                <a href="{% url 'analytics:toggle_favorite' asset.id %}?next={{ request.path }}" 
+                                   style="text-decoration: none; font-size: 1.2em;">
+                                    {% if asset.is_favorite %}★{% else %}☆{% endif %}
+                                </a>
+                            </td>
+                            {% endif %}
                         </tr>
                     {% empty %}
-                        <tr><td colspan="3">Нет акций.</td></tr>
+                        <tr><td colspan="{% if user.is_authenticated %}6{% else %}5{% endif %}">Нет акций.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -52,6 +79,8 @@
                         <th>Название</th>
                         <th>Цена ({{ currency }})</th>
                         <th>Изм. 24ч</th>
+                        <th>График 24ч</th>
+                        {% if user.is_authenticated %}<th>Избранное</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -75,9 +104,24 @@
                                     —
                                 {% endif %}
                             </td>
+                            <td>
+                                {% if asset.sparkline_svg %}
+                                    <div class="sparkline">{{ asset.sparkline_svg|safe }}</div>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            {% if user.is_authenticated %}
+                            <td>
+                                <a href="{% url 'analytics:toggle_favorite' asset.id %}?next={{ request.path }}" 
+                                   style="text-decoration: none; font-size: 1.2em;">
+                                    {% if asset.is_favorite %}★{% else %}☆{% endif %}
+                                </a>
+                            </td>
+                            {% endif %}
                         </tr>
                     {% empty %}
-                        <tr><td colspan="4">Нет криптовалют.</td></tr>
+                        <tr><td colspan="{% if user.is_authenticated %}6{% else %}5{% endif %}">Нет криптовалют.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

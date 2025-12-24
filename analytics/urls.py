@@ -12,4 +12,5 @@ urlpatterns = [
     path('profile/', views.user_profile, name='profile'),
     path('about/', views.about_contact, name='about'),
     path('signup/', views.signup, name='signup'),
+    path('toggle-favorite/<int:asset_id>/', views.toggle_favorite, name='toggle_favorite'),
 ]

@@ -1,34 +1,67 @@
 {% extends 'base.html' %}
 
-{% block title %}Панель прогнозов{% endblock %}
+{% block title %}Панель управления{% endblock %}
 
 {% block content %}
 <section>
-    <h1>Персонализированные прогнозы</h1>
-    {% if personalized_predictions %}
-        <ul>
-            {% for prediction in personalized_predictions %}
-                <li>
-                    {{ prediction.asset.ticker }} — {{ prediction.predicted_price }} ({{ prediction.get_horizon_display }})
-                </li>
-            {% endfor %}
-        </ul>
+    <h1>Избранные активы</h1>
+    {% if favorite_assets %}
+    <div class="cards">
+        {% for asset in favorite_assets %}
+        <article>
+            <h3>{{ asset.name }} ({{ asset.ticker }})</h3>
+            <p>
+                Текущая цена:
+                {% if asset.current_price %}
+                {{ asset.current_price|floatformat:2 }} USD
+                {% else %}
+                —
+                {% endif %}
+            </p>
+            <p>
+                Изменение 24ч:
+                {% if asset.change_24h is not None %}
+                <span
+                    class="{% if asset.change_24h > 0 %}text-green{% elif asset.change_24h < 0 %}text-red{% else %}text-neutral{% endif %}">
+                    {{ asset.change_24h|floatformat:2 }}%
+                </span>
+                {% else %}
+                —
+                {% endif %}
+            </p>
+        </article>
+        {% endfor %}
+    </div>
     {% else %}
-        <p>Добавьте активы в избранное, чтобы видеть прогнозы.</p>
+    <p>Добавьте активы в избранное, чтобы отслеживать их.</p>
     {% endif %}
 </section>
 
 <section>
-    <h2>Недавние просмотры</h2>
-    {% if recent_views %}
-        <ul>
-            {% for view in recent_views %}
-                <li>{{ view.prediction.asset.ticker }} — {{ view.prediction.predicted_price }} ({{ view.viewed_at }})</li>
-            {% endfor %}
-        </ul>
+    <h2>Персонализированные прогнозы</h2>
+    {% if personalized_predictions %}
+    <div class="cards">
+        {% for prediction in personalized_predictions %}
+        <article>
+            <h3>{{ prediction.asset.name }} ({{ prediction.asset.ticker }})</h3>
+            <p>Горизонт: {{ prediction.get_horizon_display }}</p>
+            <p>
+                Прогноз цены:
+                <span
+                    class="{% if prediction.direction == 'up' %}text-green{% elif prediction.direction == 'down' %}text-red{% else %}text-neutral{% endif %}">
+                    {{ prediction.predicted_price|floatformat:2 }}
+                    {% if prediction.direction == 'up' %}↑{% elif prediction.direction == 'down' %}↓{% endif %}
+                </span>
+            </p>
+            <p>Доверие модели: {{ prediction.confidence|floatformat:2 }}</p>
+            <small>Модель: {{ prediction.model_version }}</small>
+        </article>
+        {% endfor %}
+    </div>
     {% else %}
-        <p>История пока пуста.</p>
+    <p>Добавьте активы в избранное, чтобы видеть прогнозы.</p>
     {% endif %}
 </section>
-{% endblock %}
 
+
+{% endblock %}

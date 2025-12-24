@@ -6,26 +6,35 @@
 <section>
     <h1>Новости</h1>
     {% for item in news_feed %}
-        <article>
-            <h3>{{ item.title }}</h3>
-            <small>{{ item.published_at }} | {{ item.asset }}</small>
-            <p>{{ item.content }}</p>
-            <a href="{{ item.source }}" target="_blank">Источник</a>
-        </article>
+    <article>
+        <h3>{{ item.title }}</h3>
+        <small>{{ item.published_at|date:"d.m.Y H:i" }} | {% if item.asset %}{{ item.asset.ticker }}{% else %}Общие
+            новости{% endif %}</small>
+        <a href="{{ item.source }}" target="_blank">Читать далее</a>
+    </article>
     {% empty %}
-        <p>Новостей нет.</p>
+    <p>Новостей нет.</p>
     {% endfor %}
 </section>
 
 <section>
     <h2>Индекс настроений</h2>
-    {% for sentiment in sentiment_feed %}
-        <div>
-            <strong>{{ sentiment.asset.ticker }}</strong> — {{ sentiment.sentiment_score }} ({{ sentiment.source_type }})
-        </div>
-    {% empty %}
+    <div class="cards">
+        {% for sentiment in sentiment_feed %}
+        <article>
+            <h3>{{ sentiment.asset.ticker }} — {{ sentiment.asset.name }}</h3>
+            <p>
+                Настроение:
+                <span
+                    class="{% if sentiment.sentiment_score > 0.3 %}text-green{% elif sentiment.sentiment_score < -0.3 %}text-red{% else %}text-neutral{% endif %}">
+                    {{ sentiment.sentiment_score|floatformat:3 }}
+                </span>
+            </p>
+            <small>Источник: {{ sentiment.source_type }} | {{ sentiment.analysis_date|date:"d.m.Y H:i" }}</small>
+        </article>
+        {% empty %}
         <p>Данные отсутствуют.</p>
-    {% endfor %}
+        {% endfor %}
+    </div>
 </section>
 {% endblock %}
-
