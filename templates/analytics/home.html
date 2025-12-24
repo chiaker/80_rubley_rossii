@@ -11,10 +11,14 @@
             <h3>{{ prediction.asset.name }} ({{ prediction.asset.ticker }})</h3>
             <p>Горизонт: {{ prediction.get_horizon_display }}</p>
             <p>
-                Прогноз цены:
+                Прогноз изменения:
                 <span
                     class="{% if prediction.direction == 'up' %}text-green{% elif prediction.direction == 'down' %}text-red{% else %}text-neutral{% endif %}">
-                    {{ prediction.predicted_price|floatformat:2 }}
+                    {% if prediction.change_percent is not None %}
+                        {{ prediction.change_percent|floatformat:2 }}%
+                    {% else %}
+                        —
+                    {% endif %}
                     {% if prediction.direction == 'up' %}↑{% elif prediction.direction == 'down' %}↓{% endif %}
                 </span>
             </p>

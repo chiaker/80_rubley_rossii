@@ -40,24 +40,104 @@
 <section>
     <h2>Персонализированные прогнозы</h2>
     {% if personalized_predictions %}
+    <h3>Прогнозы на 7 дней</h3>
+    <h4>Акции</h4>
+    {% if stock_preds_7d %}
     <div class="cards">
-        {% for prediction in personalized_predictions %}
+        {% for prediction in stock_preds_7d %}
         <article>
             <h3>{{ prediction.asset.name }} ({{ prediction.asset.ticker }})</h3>
             <p>Горизонт: {{ prediction.get_horizon_display }}</p>
             <p>
-                Прогноз цены:
+                Прогноз изменения:
+                {% if prediction.change_percent is not None %}
                 <span
                     class="{% if prediction.direction == 'up' %}text-green{% elif prediction.direction == 'down' %}text-red{% else %}text-neutral{% endif %}">
-                    {{ prediction.predicted_price|floatformat:2 }}
+                    {{ prediction.change_percent|floatformat:2 }}%
                     {% if prediction.direction == 'up' %}↑{% elif prediction.direction == 'down' %}↓{% endif %}
                 </span>
+                {% else %}<span>—</span>{% endif %}
             </p>
             <p>Доверие модели: {{ prediction.confidence|floatformat:2 }}</p>
             <small>Модель: {{ prediction.model_version }}</small>
         </article>
         {% endfor %}
     </div>
+    {% else %}<p>Нет прогнозов для акций.</p>{% endif %}
+
+    <h4>Криптовалюты</h4>
+    {% if crypto_preds_7d %}
+    <div class="cards">
+        {% for prediction in crypto_preds_7d %}
+        <article>
+            <h3>{{ prediction.asset.name }} ({{ prediction.asset.ticker }})</h3>
+            <p>Горизонт: {{ prediction.get_horizon_display }}</p>
+            <p>
+                Прогноз изменения:
+                {% if prediction.change_percent is not None %}
+                <span
+                    class="{% if prediction.direction == 'up' %}text-green{% elif prediction.direction == 'down' %}text-red{% else %}text-neutral{% endif %}">
+                    {{ prediction.change_percent|floatformat:2 }}%
+                    {% if prediction.direction == 'up' %}↑{% elif prediction.direction == 'down' %}↓{% endif %}
+                </span>
+                {% else %}<span>—</span>{% endif %}
+            </p>
+            <p>Доверие модели: {{ prediction.confidence|floatformat:2 }}</p>
+            <small>Модель: {{ prediction.model_version }}</small>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}<p>Нет прогнозов для криптовалют.</p>{% endif %}
+
+    <h3>Прогнозы на 30 дней</h3>
+    <h4>Акции</h4>
+    {% if stock_preds_30d %}
+    <div class="cards">
+        {% for prediction in stock_preds_30d %}
+        <article>
+            <h3>{{ prediction.asset.name }} ({{ prediction.asset.ticker }})</h3>
+            <p>Горизонт: {{ prediction.get_horizon_display }}</p>
+            <p>
+                Прогноз изменения:
+                {% if prediction.change_percent is not None %}
+                <span
+                    class="{% if prediction.direction == 'up' %}text-green{% elif prediction.direction == 'down' %}text-red{% else %}text-neutral{% endif %}">
+                    {{ prediction.change_percent|floatformat:2 }}%
+                    {% if prediction.direction == 'up' %}↑{% elif prediction.direction == 'down' %}↓{% endif %}
+                </span>
+                {% else %}<span>—</span>{% endif %}
+            </p>
+            <p>Доверие модели: {{ prediction.confidence|floatformat:2 }}</p>
+            <small>Модель: {{ prediction.model_version }}</small>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}<p>Нет прогнозов для акций.</p>{% endif %}
+
+    <h4>Криптовалюты</h4>
+    {% if crypto_preds_30d %}
+    <div class="cards">
+        {% for prediction in crypto_preds_30d %}
+        <article>
+            <h3>{{ prediction.asset.name }} ({{ prediction.asset.ticker }})</h3>
+            <p>Горизонт: {{ prediction.get_horizon_display }}</p>
+            <p>
+                Прогноз изменения:
+                {% if prediction.change_percent is not None %}
+                <span
+                    class="{% if prediction.direction == 'up' %}text-green{% elif prediction.direction == 'down' %}text-red{% else %}text-neutral{% endif %}">
+                    {{ prediction.change_percent|floatformat:2 }}%
+                    {% if prediction.direction == 'up' %}↑{% elif prediction.direction == 'down' %}↓{% endif %}
+                </span>
+                {% else %}<span>—</span>{% endif %}
+            </p>
+            <p>Доверие модели: {{ prediction.confidence|floatformat:2 }}</p>
+            <small>Модель: {{ prediction.model_version }}</small>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}<p>Нет прогнозов для криптовалют.</p>{% endif %}
+
     {% else %}
     <p>Добавьте активы в избранное, чтобы видеть прогнозы.</p>
     {% endif %}

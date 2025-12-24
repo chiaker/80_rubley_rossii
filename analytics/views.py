@@ -101,15 +101,22 @@ def home(request):
             current_price = pdata.get('price')
 
         if current_price:
-            predicted = float(pred.predicted_price)
             current = float(current_price)
-            if predicted > current * 1.01:
-                pred.direction = 'up'
-            elif predicted < current * 0.99:
-                pred.direction = 'down'
+            predicted = float(pred.predicted_price)
+            if current != 0:
+                change = ((predicted - current) / current) * 100
+                pred.change_percent = change
+                if change > 1.0:
+                    pred.direction = 'up'
+                elif change < -1.0:
+                    pred.direction = 'down'
+                else:
+                    pred.direction = 'neutral'
             else:
+                pred.change_percent = 0
                 pred.direction = 'neutral'
         else:
+            pred.change_percent = None
             pred.direction = 'neutral'
 
     for a in highlighted_assets:
@@ -152,24 +159,14 @@ def home(request):
 
 @login_required
 def dashboard(request):
+    from django.utils import timezone
+    from datetime import timedelta
     from .utils import fetch_current_crypto_prices, fetch_current_stock_prices
 
     profile = getattr(request.user, 'profile', None)
     favorite_assets = profile.favorite_assets.all() if profile else Asset.objects.none()
 
-    personalized_predictions = (
-        PricePrediction.objects.select_related('asset')
-        .filter(asset__in=favorite_assets)
-        .order_by('-prediction_date')[:10]
-    )
-
-    recent_views = UserPredictionHistory.objects.filter(
-        user=request.user).select_related('prediction', 'prediction__asset')[:10]
-
-    latest_news = News.objects.filter(
-        asset__asset_type=Asset.CRYPTO
-    ).exclude(source__startswith='https://example.com/').select_related('asset').order_by('-published_at')[:5]
-
+    # Fetch current prices first to use for prediction generation if needed
     crypto_symbols = [
         a.ticker for a in favorite_assets if a.asset_type == Asset.CRYPTO]
     stock_symbols = [
@@ -180,6 +177,79 @@ def dashboard(request):
     stock_prices = fetch_current_stock_prices(
         stock_symbols) if stock_symbols else {}
 
+    # Ensure predictions exist for favorite assets
+    for asset in favorite_assets:
+        recent_predictions = PricePrediction.objects.filter(
+            asset=asset,
+            created_at__gte=timezone.now() - timedelta(hours=1)
+        ).exists()
+
+        if not recent_predictions:
+            current_price = None
+            if asset.asset_type == Asset.CRYPTO:
+                pdata = crypto_prices.get(asset.ticker.upper(), {})
+                current_price = pdata.get('price')
+            elif asset.asset_type == Asset.STOCK:
+                pdata = stock_prices.get(asset.ticker.upper(), {})
+                current_price = pdata.get('price')
+
+            if current_price:
+                try:
+                    predictions = generate_price_predictions_for_asset(
+                        asset, float(current_price))
+                    for pred_data in predictions:
+                        PricePrediction.objects.update_or_create(
+                            asset=pred_data['asset'],
+                            prediction_date=pred_data['prediction_date'],
+                            horizon=pred_data['horizon'],
+                            defaults={
+                                'predicted_price': pred_data['predicted_price'],
+                                'confidence': pred_data['confidence'],
+                                'model_version': pred_data['model_version'],
+                            }
+                        )
+                    logger.info('Generated personalized predictions for %s', asset.ticker)
+                except Exception as e:
+                    logger.error(
+                        'Failed to generate personalized predictions for %s: %s', asset.ticker, e)
+
+    personalized_predictions = (
+        PricePrediction.objects.select_related('asset')
+        .filter(asset__in=favorite_assets)
+        .order_by('-prediction_date')[:10]
+    )
+
+    for pred in personalized_predictions:
+        current_price = None
+        if pred.asset.asset_type == Asset.CRYPTO:
+            pdata = crypto_prices.get(pred.asset.ticker.upper(), {})
+            current_price = pdata.get('price')
+        elif pred.asset.asset_type == Asset.STOCK:
+            pdata = stock_prices.get(pred.asset.ticker.upper(), {})
+            current_price = pdata.get('price')
+        
+        if current_price:
+            current = float(current_price)
+            predicted = float(pred.predicted_price)
+            if current != 0:
+                change = ((predicted - current) / current) * 100
+                pred.change_percent = change
+                pred.direction = 'up' if change > 0 else 'down'
+            else:
+                 pred.change_percent = 0
+                 pred.direction = 'neutral'
+        else:
+            pred.change_percent = None
+            pred.direction = 'neutral'
+
+    recent_views = UserPredictionHistory.objects.filter(
+        user=request.user).select_related('prediction', 'prediction__asset')[:10]
+
+    latest_news = News.objects.filter(
+        asset__asset_type=Asset.CRYPTO
+    ).exclude(source__startswith='https://example.com/').select_related('asset').order_by('-published_at')[:5]
+
+    # Prices are already fetched above, just attach them to assets now
     for asset in favorite_assets:
         if asset.asset_type == Asset.CRYPTO:
             pdata = crypto_prices.get(asset.ticker.upper(), {})
@@ -194,25 +264,10 @@ def dashboard(request):
             asset.change_24h = float(pdata.get('percent_change')) if pdata.get(
                 'percent_change') else None
 
-    for pred in personalized_predictions:
-        if pred.asset.asset_type == Asset.STOCK:
-            pdata = stock_prices.get(pred.asset.ticker.upper(), {})
-            current_price = pdata.get('price')
-        else:
-            pdata = crypto_prices.get(pred.asset.ticker.upper(), {})
-            current_price = pdata.get('price')
-
-        if current_price:
-            predicted = float(pred.predicted_price)
-            current = float(current_price)
-            if predicted > current * 1.01:
-                pred.direction = 'up'
-            elif predicted < current * 0.99:
-                pred.direction = 'down'
-            else:
-                pred.direction = 'neutral'
-        else:
-            pred.direction = 'neutral'
+    stock_preds_7d = [p for p in personalized_predictions if p.asset.asset_type == Asset.STOCK and p.horizon == '7D']
+    stock_preds_30d = [p for p in personalized_predictions if p.asset.asset_type == Asset.STOCK and p.horizon == '30D']
+    crypto_preds_7d = [p for p in personalized_predictions if p.asset.asset_type == Asset.CRYPTO and p.horizon == '7D']
+    crypto_preds_30d = [p for p in personalized_predictions if p.asset.asset_type == Asset.CRYPTO and p.horizon == '30D']
 
     return render(
         request,
@@ -221,6 +276,10 @@ def dashboard(request):
             'profile': profile,
             'favorite_assets': favorite_assets,
             'personalized_predictions': personalized_predictions,
+            'stock_preds_7d': stock_preds_7d,
+            'stock_preds_30d': stock_preds_30d,
+            'crypto_preds_7d': crypto_preds_7d,
+            'crypto_preds_30d': crypto_preds_30d,
             'recent_views': recent_views,
             'latest_news': latest_news,
         },

@@ -1,3 +1,5 @@
+import json
+from google import genai
 from typing import List, Optional
 import time
 import os
@@ -5,6 +7,7 @@ import logging
 from typing import Dict, Iterable
 
 import requests
+import yfinance as yf
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -155,6 +158,37 @@ def _ensure_coingecko_map() -> None:
         _coingecko_map_cached_at = time.time()
     except Exception as e:
         logger.debug('Failed to build CoinGecko map: %s', e)
+
+
+def _get_crypto_id(symbol: str) -> Optional[str]:
+    """Resolve symbol to CoinGecko ID."""
+    try:
+        _ensure_coingecko_map()
+        cid = _coingecko_map_cache.get(symbol.lower())
+        if symbol.lower() in _COINGECKO_MANUAL_OVERRIDES:
+            cid = _COINGECKO_MANUAL_OVERRIDES[symbol.lower()]
+        
+        if not cid:
+            try:
+                sresp = requests.get('https://api.coingecko.com/api/v3/search', params={'query': symbol}, timeout=5)
+                sresp.raise_for_status()
+                sdata = sresp.json()
+                coins = sdata.get('coins', [])
+                found = None
+                for c in coins:
+                    if c.get('symbol', '').lower() == symbol.lower():
+                        found = c.get('id')
+                        break
+                if not found and coins:
+                    found = coins[0].get('id')
+                if found:
+                    cid = found
+                    _coingecko_map_cache[symbol.lower()] = cid
+            except Exception:
+                pass
+        return cid
+    except Exception:
+        return None
 
 
 def fetch_24h_series(symbol: str, asset_type: str, convert: str = 'USD') -> List[float]:
@@ -491,8 +525,144 @@ def fetch_news_from_newsdata(category: str = None, language: str = None, limit: 
         return []
 
 
+def fetch_7d_history(symbol: str, asset_type: str) -> List[float]:
+    """Fetch hourly prices for the last 7 days."""
+    symbol = (symbol or '').strip()
+    if not symbol:
+        return []
+
+    if asset_type == 'STOCK':
+        # Try Finnhub first
+        api_key = os.environ.get('FINNHUB_API_KEY') or os.environ.get('FINNHUB_KEY')
+        success_finnhub = False
+        if api_key:
+            to_ts = int(time.time())
+            from_ts = to_ts - 7 * 24 * 3600
+            # Use daily resolution 'D' to avoid 403 on free tier and reduce noise
+            url = 'https://finnhub.io/api/v1/stock/candle'
+            params = {'symbol': symbol, 'resolution': 'D', 'from': from_ts, 'to': to_ts, 'token': api_key}
+            try:
+                resp = requests.get(url, params=params, timeout=10)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get('s') == 'ok':
+                         prices = [float(x) for x in data.get('c', []) if x is not None]
+                         if prices:
+                             return prices
+                else:
+                    logger.warning(f"Finnhub 7d fetch for {symbol} returned status {resp.status_code}")
+            except Exception as e:
+                logger.error(f"Finnhub 7d fetch error for {symbol}: {e}")
+        
+        # Fallback to yfinance
+        try:
+            logger.info(f"Falling back to yfinance for {symbol}")
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period="7d", interval="1d")
+            if not hist.empty:
+                prices = hist['Close'].tolist()
+                return [float(x) for x in prices]
+        except Exception as e:
+             logger.error(f"yfinance 7d fetch error for {symbol}: {e}")
+        
+        return []
+
+    elif asset_type == 'CRYPTO':
+        cid = _get_crypto_id(symbol)
+        if not cid:
+            return []
+        
+        try:
+            url = f'https://api.coingecko.com/api/v3/coins/{cid}/market_chart'
+            params = {'vs_currency': 'usd', 'days': 7}
+            r = requests.get(url, params=params, timeout=10)
+            r.raise_for_status()
+            pl = r.json()
+            prs = pl.get('prices', [])
+            if prs:
+                return [float(p[1]) for p in prs]
+        except Exception as e:
+            logger.error(f"CoinGecko 7d fetch error for {symbol}: {e}")
+    
+    return []
+
+
+def get_gemini_prediction(asset_name: str, prices: List[float]):
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        logger.warning("GEMINI_API_KEY not set")
+        return None
+    
+    try:
+        client = genai.Client(api_key=api_key)
+        
+        # Take a sample of prices if too many
+        price_sample = prices
+        if len(prices) > 200:
+             # simple downsampling
+             step = len(prices) // 100
+             price_sample = prices[::step]
+        
+        prompt = f"""
+        You are a financial analyst AI.
+        Analyze the following stock/crypto price history for {asset_name} (last 7 days):
+        {price_sample}
+        
+        Predict the price movement for the following horizons: 1 Day (1D), 7 Days (7D), and 30 Days (30D).
+        
+        For each horizon, provide:
+        1. The predicted percentage change (positive for increase, negative for decrease).
+        2. A confidence score between 0.0 and 1.0.
+        
+        Return the result strictly as a valid JSON object with keys "1D", "7D", "30D".
+        Each value should be an object with "change_percent" (float) and "confidence" (float).
+        Example:
+        {{
+            "1D": {{"change_percent": 1.5, "confidence": 0.8}},
+            "7D": {{"change_percent": -2.0, "confidence": 0.7}},
+            "30D": {{"change_percent": 5.0, "confidence": 0.6}}
+        }}
+        Do not include markdown formatting or code blocks. Just the raw JSON string.
+        """
+        
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        text = response.text.strip()
+        logger.info(f"Gemini raw response: {text}")
+        
+        # Clean up code blocks
+        if text.startswith('```json'):
+            text = text[7:]
+        elif text.startswith('```'):
+            text = text[3:]
+        
+        if text.endswith('```'):
+            text = text[:-3]
+            
+        text = text.strip()
+        
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            # Try to find JSON object if there's extra text
+            start = text.find('{')
+            end = text.rfind('}')
+            if start != -1 and end != -1:
+                try:
+                    return json.loads(text[start:end+1])
+                except:
+                    pass
+            logger.error(f"Failed to parse Gemini JSON: {text}")
+            return None
+    except Exception as e:
+        logger.error(f"Gemini API error: {e}")
+        return None
+
+
 def generate_price_predictions_for_asset(asset, current_price: float = None) -> List[Dict]:
-    """Генерирует предсказания цен для актива через рандомайзер.
+    """Генерирует предсказания цен для актива через Gemini AI (с фоллбэком на рандомайзер).
 
     Args:
         asset: Объект Asset
@@ -521,20 +691,48 @@ def generate_price_predictions_for_asset(asset, current_price: float = None) -> 
     predictions = []
     horizons = ['1D', '7D', '30D']
     horizon_days = {'1D': 1, '7D': 7, '30D': 30}
+    
+    # Fetch history
+    history = fetch_7d_history(asset.ticker, asset.asset_type)
+    logger.info(f"Fetched {len(history)} price points for {asset.ticker}")
+    
+    gemini_result = None
+    if history:
+        gemini_result = get_gemini_prediction(asset.name, history)
+        if gemini_result:
+             logger.info(f"Gemini prediction successful for {asset.ticker}")
+        else:
+             logger.warning(f"Gemini returned None for {asset.ticker}")
+    else:
+        logger.warning(f"No history found for {asset.ticker}, skipping Gemini")
+    
+    model_version = 'v2.0-gemini' if gemini_result else 'v1.0-random'
 
     for horizon in horizons:
-        direction = random.choice(['up', 'down'])
-        change_percent = random.uniform(0.5, 5.0)
+        prediction_data = None
+        if gemini_result:
+            prediction_data = gemini_result.get(horizon)
+        
+        if prediction_data:
+            try:
+                change_percent = float(prediction_data.get('change_percent', 0))
+                confidence = float(prediction_data.get('confidence', 0.5))
+                predicted_price = current_price * (1 + change_percent / 100)
+            except (ValueError, TypeError):
+                prediction_data = None # Fallback if parsing failed
+        
+        if not prediction_data:
+            # Fallback to random
+            direction = random.choice(['up', 'down'])
+            change_percent = random.uniform(0.5, 5.0)
+            if direction == 'up':
+                predicted_price = current_price * (1 + change_percent / 100)
+            else:
+                predicted_price = current_price * (1 - change_percent / 100)
+            confidence = random.uniform(0.65, 0.95)
+            model_version = 'v1.0-random'
 
-        if direction == 'up':
-            predicted_price = current_price * (1 + change_percent / 100)
-        else:
-            predicted_price = current_price * (1 - change_percent / 100)
-
-        confidence = random.uniform(0.65, 0.95)
-
-        prediction_date = timezone.now(
-        ) + timedelta(days=horizon_days[horizon])
+        prediction_date = timezone.now() + timedelta(days=horizon_days[horizon])
 
         predictions.append({
             'asset': asset,
@@ -542,7 +740,7 @@ def generate_price_predictions_for_asset(asset, current_price: float = None) -> 
             'horizon': horizon,
             'predicted_price': Decimal(str(round(predicted_price, 2))),
             'confidence': round(confidence, 2),
-            'model_version': 'v1.0-random',
+            'model_version': model_version,
         })
 
     return predictions
